@@ -1,0 +1,37 @@
+# YearMedia AI service — Python 3.12, FastAPI + Uvicorn.
+#
+# Model mapping (do not mix up):
+#   Background removal = BiRefNet (primary) / rembg (fallback)
+#   Upscaling          = Real-ESRGAN (RealESRGAN_x4plus)
+#   Metadata           = Gemini API (REST, no local model)
+#   Converters         = potrace / inkscape / ghostscript CLI wrappers
+#   Image processing   = Sharp lives in apps/api (Node), not here.
+#
+# Heavy libraries (torch, transformers, realesrgan, rembg, opencv) are
+# NEVER imported at module level. All heavy imports are lazy inside
+# functions with try/except ImportError -> honest 503. This file, and
+# every router, must import and run with only the light deps installed
+# (fastapi, uvicorn, python-multipart, pillow, numpy, httpx, python-dotenv).
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30,<1
+python-multipart>=0.0.12
+pillow>=10.4
+numpy>=1.26
+httpx>=0.27
+python-dotenv>=1.0
+
+# --- Optional / heavy (install only where the model will actually run) ---
+# opencv-python-headless — used by /quality for Laplacian sharpness/noise
+#   when present; /quality falls back to pure numpy when it is absent.
+# opencv-python-headless>=4.10
+
+# --- GPU / model deps (CPU torch; do NOT install on a small VM) ---
+# torch must come from the PyTorch CPU index, NOT the default PyPI index:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+# transformers>=4.44   # BiRefNet via transformers (lazy import in remove_bg.py)
+# rembg>=2.0           # fallback background remover (lazy import)
+# huggingface_hub>=0.24  # used by scripts/download_models.py
+# realesrgan>=0.3.0   # Real-ESRGAN upscaler (lazy import in upscale.py)
+# basicsr>=1.4.2      # required by realesrgan
+# facexlib>=0.3.0      # required by realesrgan (face enhancement deps)
+# gfpgan>=1.3.8        # required by realesrgan
