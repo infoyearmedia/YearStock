@@ -1,7 +1,8 @@
 -- YearMedia — Supabase / PostgreSQL schema (001_schema.sql)
 -- Run in the Supabase SQL editor (or psql) against your project.
--- The API currently runs in local/demo mode (in-memory + JSON file store);
--- this schema is for the future Supabase wiring. No data is migrated yet.
+-- The API (apps/api) is wired to these tables when SUPABASE_URL and
+-- SUPABASE_SERVICE_ROLE_KEY are set; without them it falls back to the
+-- local/demo JSON store. No data is migrated yet.
 
 -- Extensions
 create extension if not exists "pgcrypto";

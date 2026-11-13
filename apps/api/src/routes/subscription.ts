@@ -1,5 +1,7 @@
 import { Router, type Response } from 'express';
 import { requireAuth, type AuthRequest } from '../middleware/auth';
+import { getProfile, getSubscriptionStatus } from '../lib/db';
+import { SUPABASE_CONFIGURED } from '../lib/supabase';
 import { PLANS, PERIODS_MONTHS } from '../lib/plans';
 
 const router = Router();
@@ -14,8 +16,22 @@ router.get('/plans', (_req, res: Response) => {
   });
 });
 
-// GET /api/subscription/me — current user's plan.
-router.get('/me', requireAuth, (req: AuthRequest, res: Response) => {
+// GET /api/subscription/me — current user's plan. Supabase mode reads the
+// real profiles + subscriptions rows; local mode returns the demo values.
+router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
+  if (SUPABASE_CONFIGURED) {
+    const profile = await getProfile(req.user!.id);
+    const sub = await getSubscriptionStatus(req.user!.id);
+    res.json({
+      userId: req.user!.id,
+      email: profile?.email ?? req.user!.email,
+      plan: profile?.plan ?? req.user!.plan,
+      periodMonths: sub.periodMonths,
+      status: sub.status,
+      note: 'No payment provider connected — plan managed manually.',
+    });
+    return;
+  }
   res.json({
     userId: req.user!.id,
     email: req.user!.email,

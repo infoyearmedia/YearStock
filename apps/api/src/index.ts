@@ -11,11 +11,11 @@ import subscriptionRoutes from './routes/subscription';
 const app: Express = express();
 const PORT = Number(process.env.PORT || 4000);
 
-const LOCAL_MODE = !process.env.SUPABASE_URL;
+const LOCAL_MODE = !process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (LOCAL_MODE) {
-  console.log('[yearmedia-api] running in local/demo mode — SUPABASE_URL not set, using in-memory + JSON file store (apps/api/data/).');
+  console.log('[yearmedia-api] running in local/demo mode — Supabase keys not set, using in-memory + JSON file store (apps/api/data/).');
 } else {
-  console.log('[yearmedia-api] SUPABASE_URL is set, but this build still uses the local store (Supabase wiring is a later step).');
+  console.log('[yearmedia-api] supabase connected — Auth + profiles/history/jobs/subscriptions read from Supabase.');
 }
 if (!process.env.GEMINI_API_KEY) {
   console.log('[yearmedia-api] GEMINI_API_KEY not set — metadata uses the honest filename-only demo fallback.');
@@ -29,7 +29,7 @@ app.get('/health', (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
     service: 'yearmedia-api',
-    mode: LOCAL_MODE ? 'local/demo' : 'local/demo (supabase configured, not wired yet)',
+    mode: LOCAL_MODE ? 'local/demo' : 'supabase',
     aiServiceUrl: process.env.AI_SERVICE_URL || 'http://localhost:8000',
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
     timestamp: new Date().toISOString(),

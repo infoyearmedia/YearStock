@@ -1,11 +1,14 @@
-// Demo JWT auth middleware. DEMO ONLY: any email + password >= 6 chars can
-// sign up / log in, users live in the local store, and the JWT secret falls
-// back to 'demo-secret-change-me' when JWT_SECRET is not set. Do not use in
-// production without a real user table, bcrypt and a strong secret.
+// Auth middleware: verifies the Bearer token and loads the current plan.
+// Supabase mode (SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY set): the token is
+// a Supabase Auth access token, verified with supabase.auth.getUser(); the
+// plan comes from public.profiles. Local/demo mode (no keys): the old local
+// JWT path with the JSON-file store. signToken is kept for the local mode.
 
 import type { NextFunction, Request, Response } from 'express';
 import * as jwt from 'jsonwebtoken';
 import { findUserById } from '../lib/store';
+import { getProfile } from '../lib/db';
+import { getUserFromToken, SUPABASE_CONFIGURED } from '../lib/supabase';
 import type { PlanId } from '../lib/plans';
 
 export const JWT_SECRET = process.env.JWT_SECRET || 'demo-secret-change-me';
@@ -30,13 +33,36 @@ export function signToken(user: { id: string; email: string; plan: PlanId }): st
   });
 }
 
-export function requireAuth(req: AuthRequest, res: Response, next: NextFunction): void {
+export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) {
     res.status(401).json({ error: 'unauthorized', message: 'Missing Bearer token' });
     return;
   }
+
+  if (SUPABASE_CONFIGURED) {
+    try {
+      const sbUser = await getUserFromToken(token);
+      if (!sbUser) {
+        res.status(401).json({ error: 'unauthorized', message: 'Invalid or expired token' });
+        return;
+      }
+      // Always read the current plan from profiles, not the token.
+      const profile = await getProfile(sbUser.id);
+      req.user = {
+        id: sbUser.id,
+        email: profile?.email ?? sbUser.email ?? '',
+        plan: profile?.plan ?? 'free',
+      };
+      next();
+    } catch (err) {
+      console.error('[auth] Supabase token verification failed:', (err as Error).message);
+      res.status(401).json({ error: 'unauthorized', message: 'Invalid or expired token' });
+    }
+    return;
+  }
+
   try {
     const payload = jwt.verify(token, JWT_SECRET) as { sub: string; email: string; plan: PlanId };
     const user = findUserById(payload.sub);

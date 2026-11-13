@@ -8,7 +8,7 @@ import {
   getPreset,
   type MarketplacePreset,
 } from '../lib/plans';
-import { addJob, countJobsThisMonth } from '../lib/store';
+import { addJob, countJobsThisMonth } from '../lib/db';
 
 const router = Router();
 const upload = multer({
@@ -147,7 +147,7 @@ router.post(
   async (req: AuthRequest, res: Response) => {
     const user = req.user!;
     // Free-plan demo cap: 5 generations / calendar month.
-    if (user.plan === 'free' && countJobsThisMonth(user.id, 'metadata') >= FREE_METADATA_MONTHLY_LIMIT) {
+    if (user.plan === 'free' && (await countJobsThisMonth(user.id, 'metadata')) >= FREE_METADATA_MONTHLY_LIMIT) {
       res.status(403).json({
         error: 'upgrade_required',
         feature: 'metadata',
@@ -162,7 +162,7 @@ router.post(
       'untitled.jpg';
     const preset = getPreset(req.body?.marketplace);
     const keywordCount = parseKeywordCount(req.body);
-    addJob(user.id, 'metadata', 'done');
+    await addJob(user.id, 'metadata', 'done');
 
     if (GEMINI_API_KEY) {
       const image = req.file ? { buffer: req.file.buffer, mimetype: req.file.mimetype } : null;
